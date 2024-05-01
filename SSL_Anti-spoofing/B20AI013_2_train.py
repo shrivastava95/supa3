@@ -18,11 +18,13 @@ from model import Model
 ###########################################
 checkpoint_save_dir = 'checkpoint_save_dir'
 experiment_save_name = 'train_eval_1'
-# root_directory_path_rishabh_subset = r'C:\ai_sem_9\COURSES\supa3\Dataset_Speech_Assignment' # contains .wav and .mp3 files
-# root_directory_path_testing = r'C:\ai_sem_9\COURSES\supa3\for-2seconds\testing'  # contains .wav files only.
-root_directory_path_train = r'C:\ai_sem_9\COURSES\supa3\for-2seconds\training'  # contains .wav files only.
-root_directory_path_validation = r'C:\ai_sem_9\COURSES\supa3\for-2seconds\validation'  # contains .wav files only.
-batch_size = 2
+
+# root_directory_path_rishabh_subset = '../Dataset_Speech_Assignment' # contains .wav and .mp3 files
+root_directory_path_testing = '../for-2seconds/testing'  # contains .wav files only.
+root_directory_path_train = '../for-2seconds/training'  # contains .wav files only.
+root_directory_path_validation = '../for-2seconds/validation'  # contains .wav files only.
+
+batch_size = 8
 nepochs = 5
 learningrate = 3e-4
 
@@ -31,13 +33,31 @@ args = None
 random_seed = 42
 torch.manual_seed(random_seed)
 ###########################################
+# wandb
+
+import wandb
+
+wandb.init(
+    project='supa3',
+    
+    config={
+        'learning-rate': learningrate,
+        'num-epochs': nepochs,
+        'batch-size': batch_size,
+        'random-seed': random_seed,
+    }
+)
+
+###########################################
+
+
 
 
 # load the model
 model = Model(args, 'cpu')
 
 # load the best state dict .pth file
-state_dict_path = r'C:\ai_sem_9\COURSES\supa3\models\Best_LA_model_for_DF.pth'
+state_dict_path = '../models/Best_LA_model_for_DF.pth'
 state_dict = torch.load(state_dict_path, map_location='cpu')
 for key in list(state_dict.keys()):
     state_dict[key.replace('module.', '')] = state_dict.pop(key)
@@ -194,6 +214,7 @@ def train_script(model, train_loader, eval_loader, num_epochs, learning_rate, de
             bar.set_postfix({
                 'trainloss(tillnow)': np.mean(np.array(trainloss)),
             })
+            wandb.log({"trainloss": loss.item()})
         bar.close()
         
         train_auc, train_eer, train_thresh = eval_script(model, train_loader, device, savelogs=False, printlogs=False)
@@ -215,6 +236,15 @@ def train_script(model, train_loader, eval_loader, num_epochs, learning_rate, de
             'learning_rate': learning_rate,
             'batch_size': batch_size,
         }
+        
+        wandb_log = {
+            'auc_train' : auc_train [-1] ,
+            'eer_train' : eer_train [-1] ,
+            'auc_eval'  : auc_eval  [-1] ,
+            'eer_eval'  : eer_eval  [-1] ,
+        }
+        
+        wandb.log(wandb_log)
 
         if printlogs:
             print(json.dumps(obj=logs, indent=4))
@@ -237,7 +267,7 @@ print('eer_train: ', eer_train[-1])
 print('auc_eval: ', auc_eval[-1])
 print('eer_eval: ', eer_eval[-1])
 
-
+wandb.finish()
 
 # threshold = -3.4
 # preds = [int(score > threshold) for score in scores]

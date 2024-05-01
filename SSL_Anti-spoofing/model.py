@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 import fairseq
+import os
 
 
 ___author__ = "Hemlata Tak"
@@ -22,7 +23,8 @@ class SSLModel(nn.Module):
         super(SSLModel, self).__init__()
         
         cp_path = 'xlsr2_300m.pt'                                                           # Change the pre-trained XLSR model path. 
-        cp_path = '../supa3/SSL_Anti-spoofing/checkpoints/xlsr2_300m.pt'   # Change the pre-trained XLSR model path. 
+        cp_path = './checkpoints/xlsr2_300m.pt'   # Change the pre-trained XLSR model path. 
+        cp_path = os.path.abspath(cp_path)
         model, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([cp_path])
         self.model = model[0]
         self.device=device
