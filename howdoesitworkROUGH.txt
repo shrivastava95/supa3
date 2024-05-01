@@ -1,0 +1,180 @@
+file_meta = genSpoof_list(
+	dir_meta = 'database/ASVspoof_DF_cm_protocols/ASVspoof2021.DF.cm.eval.trl.txt',
+	is_train=False,
+	is_eval=True,
+)
+
+print('no.of eval trials', len(file_eval)
+
+################################################################################################################################################################################################
+
+def pad(x, max_len=64600):
+    x_len = x.shape[0]
+    if x_len >= max_len:
+        return x[:max_len]
+    # need to pad
+    num_repeats = int(max_len / x_len)+1
+    padded_x = np.tile(x, (1, num_repeats))[:, :max_len][0]
+    return padded_x
+
+
+eval_set = Dataset_ASVspoof2021_eval(
+	list_IDs = file_eval,
+	base_dir = os.path.join(args.database_path+'ASVspoof_2021_DF_eval'),
+)
+
+######## what getitem inside of the above does is that:
+###### utt_id = list_ids[index]        # where list_ids was loaded above already
+###### X = librosa.load(self.base_dir + 'flac/' + utt_id + '.flac', sr=16000)
+###### X_pad = pad(X, self.cut)
+###### x_inp = Tensor(X_pad)
+###### return x_inp, utt_id
+######
+
+################################################################################################################################################################################################
+
+produce_evaluation_file(
+	eval_set, 
+	model, 
+	device, 
+	args.eval_output   #### path to save the evaluation result.
+)
+
+
+######## what produce_evaluation_file inside of the above does is that:
+###### data_loader = DataLoader(
+		dataset = eval_set,
+		model = model, 
+		device = device,
+		save_path = args.model_output,
+	)
+###### num_correct = 0.0
+###### num_total = 0.0
+###### model.eval()
+###### fname_list = []
+###### key_list = []
+###### score_list = []
+######
+###### for batch_x, utt_id in data_loader:
+######     fname_list = []
+######     score_list = []
+######     batch_size = batch_x.size(0)
+######     batch_x = batch_x.to(device)
+######     batch_out = model(batch_x)
+######     batch_score = (batch_out[:, 1]).data.cpu().numpy().ravel()
+######     # add_outputs
+######     fname_list.extend(utt_id)
+######     score_list.extend(batch_score.tolist())
+######     with open(save_path, 'a+') as fh:
+######         for f, cm in zip(fname_list, score_list):
+######
+
+sys.exit(0)
+
+################################################################################################################################################################################################
+################################################################################################################################################################################################
+################################################################################################################################################################################################
+
+
+
+then, 
+python evaluate_2021_DF.py Score_DF.txt ./keys eval
+
+how does this file work?
+vvvvvvvvvvvvvvvvvvvvvv
+
+submit_file = 'Score_DF.txt'
+truth_dir = './keys/DF'
+phase = eval
+cm_key_file = './keys/DF/CM/trial_metadata.txt'
+
+_ = eval_to_score_file(
+	score_file = submit_file,
+	cm_key_file = cm_key_file,
+)  #############  what this does is the folowing;
+
+######## inside this function, this is done:
+######    submission_scores = pd.read_csv(score_file)
+######    cm_data = pd.read_csv(cm_key_file)
+######    cm_scores = submission_scores.merge(cm_data[cm_data[7]==phase], left_on=0, right_on=1, how='inner') # progress vs eval sets
+######    bona_cm = cm_scores[cm_scores[5] == 'bonafide']['1_x'].values    ## these are probably the second column values in the saved eval output file.
+######    spoof_cm = cm_scores[cm_scores[5] == 'spoof']['1_x'].values
+######    eer_cm = em_compute(bona_cm, spoof_cm)[0]
+######    out_data = "eer: %.2f\n" % (100*eer_cm)
+
+
+#############################################################3\
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import torch
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+import librosa
+from torch.utils.data import Dataset, DataLoader
+
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+# load the model
+
+# load the dataset
+
+# load the dataloader. 
+
+# define the eval script. it should output two lists:
+# # 1. list_bonafide should contain the pred scores for REAL audios
+# # 2. list_spoof should contain the pred scores for FAKE audios
+
+# run post-eval computation of EER and AUC. verify your EER from their EER implementation.
+
+# after this, start doing shit inside train.py. figure out the training and then train for 1 epoch and then run eval straight after the training and recompute everything.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
