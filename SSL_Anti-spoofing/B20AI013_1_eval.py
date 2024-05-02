@@ -18,7 +18,7 @@ from model import Model
 
 # Configuration
 experiment_save_name = 'custom_subset_eval_1'
-root_directory_path_rishabh_subset = '../Dataset_Speech_Assignment'
+root_directory_path_rishabh_subset = '../Dataset_Speech_Assignment' 
 batch_size = 8
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 args = None
@@ -35,6 +35,7 @@ for key in list(state_dict.keys()):
     state_dict[key.replace('module.', '')] = state_dict.pop(key)
 model.load_state_dict(state_dict)
 
+
 # Load the dataset
 def pad(x, max_len=64600):
     x_len = x.shape[0]
@@ -44,12 +45,14 @@ def pad(x, max_len=64600):
     padded_x = np.tile(x, (1, num_repeats))[:, :max_len][0]
     return padded_x
 
+
 def loader_rishabhsubset(samplepath):
     cut = 64600
     X, fs = librosa.load(samplepath, sr=16000)
     X_pad = pad(X, cut)
     x_inp = Tensor(X_pad)
     return x_inp
+
 
 dataset = DatasetFolder(root_directory_path_rishabh_subset, loader=loader_rishabhsubset, extensions=('wav', 'mp3', ))
 
