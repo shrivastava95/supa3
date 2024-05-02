@@ -12,11 +12,12 @@ from sklearn import metrics
 from scipy.optimize import brentq
 from scipy.interpolate import interp1d
 from sklearn.metrics import roc_curve
+from matplotlib import pyplot as plt
 
 from model import Model
 
 # Configuration
-experiment_save_name = 'custom_subset_eval_1.json'
+experiment_save_name = 'custom_subset_eval_1'
 root_directory_path_rishabh_subset = '../Dataset_Speech_Assignment'
 batch_size = 8
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -87,7 +88,7 @@ def compute_eer_auc(target_scores, nontarget_scores):
     return eer, auc, thresholds[min_index]
 
 # Evaluation script
-def eval_script(model, loader, device, savepath='B20AI013_evaldir', printlogs=True, savelogs=True):
+def eval_script(model, loader, device, savepath='B20AI013_evaldir', printlogs=True, savelogs=True, savefigs=True):
     with torch.no_grad():
         model = model.to(device)
         model.eval()
@@ -111,7 +112,7 @@ def eval_script(model, loader, device, savepath='B20AI013_evaldir', printlogs=Tr
             print()
         
         if savelogs:
-            with open(os.path.join(savepath, experiment_save_name), 'w') as f:
+            with open(os.path.join(savepath, experiment_save_name + '.json'), 'w') as f:
                 json.dump(
                     {
                         'eer': float(f'{eer}'),
@@ -119,10 +120,25 @@ def eval_script(model, loader, device, savepath='B20AI013_evaldir', printlogs=Tr
                         'thresh': float(f'{thresh}'),
                     }, f, indent=4
                 )
+            
+        if savefigs:    
+            # Plot ROC curve and save
+            image_save_path = os.path.join(savepath, experiment_save_name + '.png')
+            plt.figure()
+            lw = 2
+            plt.plot(fpr, tpr, color='darkorange', lw=lw, label='ROC curve (area = %0.2f)' % auc)
+            plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+            plt.xlim([0.0, 1.0])
+            plt.ylim([0.0, 1.05])
+            plt.xlabel('False Positive Rate')
+            plt.ylabel('True Positive Rate')
+            plt.title('Receiver Operating Characteristic (ROC) Curve')
+            plt.legend(loc="lower right")
+            plt.savefig(image_save_path)
 
     return eer, auc
 
-eval_script(model, loader, device, printlogs=False, savelogs=False)
+eval_script(model, loader, device, printlogs=False, savelogs=False, savefigs=True)
 
 # after this, start doing shit inside train.py. figure out the training and then train for 1 epoch and then run eval straight after the training and recompute everything.
 

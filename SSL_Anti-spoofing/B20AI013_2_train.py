@@ -17,15 +17,17 @@ from model import Model
 
 ###########################################
 checkpoint_save_dir = 'checkpoint_save_dir'
-experiment_save_name = 'train_eval_1'
+experiment_save_name = 'train_eval_2_final'
 
 # root_directory_path_rishabh_subset = '../Dataset_Speech_Assignment' # contains .wav and .mp3 files
-root_directory_path_testing = '../for-2seconds/testing'  # contains .wav files only.
+
+root_directory_path_testing = '../Dataset_Speech_Assignment'  # contains .wav files only.
+# root_directory_path_testing = '../for-2seconds/testing'  # contains .wav files only.
 root_directory_path_train = '../for-2seconds/training'  # contains .wav files only.
 root_directory_path_validation = '../for-2seconds/validation'  # contains .wav files only.
 
-batch_size = 8
-nepochs = 5
+batch_size = 32
+nepochs = 2
 learningrate = 3e-4
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -86,10 +88,12 @@ def loader_rishabhsubset(samplepath):
 
 train_dataset = DatasetFolder(root_directory_path_train, loader=loader_rishabhsubset, extensions=('wav', 'mp3', ))
 eval_dataset  = DatasetFolder(root_directory_path_validation, loader=loader_rishabhsubset, extensions=('wav', 'mp3', ))
+test_dataset  = DatasetFolder(root_directory_path_testing, loader=loader_rishabhsubset, extensions=('wav', 'mp3', ))
 
 # load the dataloader. 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 eval_loader  = DataLoader(eval_dataset , batch_size=batch_size, shuffle=True)
+test_loader  = DataLoader(test_dataset , batch_size=batch_size, shuffle=True)
 
 
 
@@ -189,40 +193,46 @@ def eval_script(model, loader, device, savepath='B20AI013_evaldir', savelogs=Tru
 
 # after this, start doing shit inside train.py. figure out the training and then train for 1 epoch and then run eval straight after the training and recompute everything.
 
-def train_script(model, train_loader, eval_loader, num_epochs, learning_rate, device, optimizer, criterion, trainloss=[], eer_train=[], eer_eval=[], auc_train=[], auc_eval=[], printlogs=True, savelogs=True):
+def train_script(model, train_loader, eval_loader, test_loader, num_epochs, learning_rate, device, optimizer, criterion, trainloss=[], eer_train=[], eer_eval=[], eer_test=[], auc_train=[], auc_eval=[], auc_test=[], printlogs=True, savelogs=True):
     model.train()
     model = model.to(device)
     optimizer = optimizer(model.parameters(), lr=learning_rate)
     criterion = criterion()
 
-    for epoch in range(1, num_epochs+1):
-        tqdm.write(f'begun training epoch#{epoch} out of {num_epochs}')
-        tqdm.write(f'-' * 20)
-        bar = tqdm(total=len(train_loader))
-        for xs, labels in train_loader:
-            optimizer.zero_grad()
-            xs, labels = xs.to(device), labels.to(device)
-            outputs = model(xs)     
-            scores = torch.stack([outputs[:, 1], - outputs[:, 1]], dim=1)
+    for epoch in range(num_epochs+1):
+        if epoch > 0:
+            tqdm.write(f'begun training epoch#{epoch} out of {num_epochs}')
+            tqdm.write(f'-' * 20)
+            bar = tqdm(total=len(train_loader))
+            for xs, labels in train_loader:
+                optimizer.zero_grad()
+                xs, labels = xs.to(device), labels.to(device)
+                outputs = model(xs)     
+                scores = torch.stack([outputs[:, 1], - outputs[:, 1]], dim=1)
 
-            # print(scores.shape, labels.shape)
-            loss = criterion(scores, labels)
-            loss.backward()
-            optimizer.step()
-            trainloss.append(loss.item())
-            bar.update(1)
-            bar.set_postfix({
-                'trainloss(tillnow)': np.mean(np.array(trainloss)),
-            })
-            wandb.log({"trainloss": loss.item()})
-        bar.close()
-        
+                # print(scores.shape, labels.shape)
+                loss = criterion(scores, labels)
+                loss.backward()
+                optimizer.step()
+                trainloss.append(loss.item())
+                bar.update(1)
+                bar.set_postfix({
+                    'trainloss(tillnow)': np.mean(np.array(trainloss)),
+                })
+                wandb.log({"trainloss": loss.item()})
+            bar.close()
+        else:
+            tqdm.write('epoch 0, printing the raw results only...')
+            
         train_auc, train_eer, train_thresh = eval_script(model, train_loader, device, savelogs=False, printlogs=False)
         eval_auc, eval_eer, eval_thresh = eval_script(model, eval_loader, device, savelogs=False, printlogs=False)
+        test_auc, test_eer, test_thresh = eval_script(model, test_loader, device, savelogs=False, printlogs=False)
         auc_train.append(train_auc )
         eer_train.append(train_eer )
         auc_eval.append (eval_auc  )
         eer_eval.append (eval_eer  )
+        auc_test.append (test_auc  )
+        eer_test.append (test_eer  )
         logs = {
             'checkpoint_save_dir': checkpoint_save_dir,
             'experiment_save_name': experiment_save_name,
@@ -232,6 +242,8 @@ def train_script(model, train_loader, eval_loader, num_epochs, learning_rate, de
             'eer_train': eer_train,
             'auc_eval': auc_eval,
             'eer_eval': eer_eval,
+            'auc_test': auc_test,
+            'eer_test': eer_test,
             'training_epochs': epoch,
             'learning_rate': learning_rate,
             'batch_size': batch_size,
@@ -242,6 +254,8 @@ def train_script(model, train_loader, eval_loader, num_epochs, learning_rate, de
             'eer_train' : eer_train [-1] ,
             'auc_eval'  : auc_eval  [-1] ,
             'eer_eval'  : eer_eval  [-1] ,
+            'auc_test'  : auc_test  [-1] ,
+            'eer_test'  : eer_test  [-1] ,
         }
         
         wandb.log(wandb_log)
@@ -256,16 +270,18 @@ def train_script(model, train_loader, eval_loader, num_epochs, learning_rate, de
             }, os.path.join(checkpoint_save_dir, experiment_save_name + '_ckpt.pt'))
             with open(os.path.join(checkpoint_save_dir, experiment_save_name + '_logs.json'), 'w') as f:
                 json.dump(logs, f, indent=4)
-    return trainloss, auc_train, eer_train, auc_eval, eer_eval
+    return trainloss, auc_train, eer_train, auc_eval, eer_eval, auc_test, eer_test
 
-trainloss, auc_train, eer_train, auc_eval, eer_eval = [], [], [], [], []
-trainloss, auc_train, eer_train, auc_eval, eer_eval = train_script(model, train_loader, eval_loader, nepochs, learningrate, device, torch.optim.Adam, torch.nn.CrossEntropyLoss, trainloss, eer_train, eer_eval, auc_train, auc_eval)
+trainloss, auc_train, eer_train, auc_eval, eer_eval, auc_test, eer_test = [], [], [], [], [], [], []
+trainloss, auc_train, eer_train, auc_eval, eer_eval, auc_test, eer_test = train_script(model, train_loader, eval_loader, test_loader, nepochs, learningrate, device, torch.optim.Adam, torch.nn.CrossEntropyLoss, trainloss, eer_train, eer_eval, eer_test, auc_train, auc_eval, auc_test)
 
 print('trainloss: ', trainloss[-1])
 print('auc_train: ', auc_train[-1])
 print('eer_train: ', eer_train[-1])
 print('auc_eval: ', auc_eval[-1])
 print('eer_eval: ', eer_eval[-1])
+print('auc_test: ', auc_test[-1])
+print('eer_test: ', eer_test[-1])
 
 wandb.finish()
 
