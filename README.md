@@ -9,3 +9,5 @@ A repository for the Speech Understanding course assignment 3, by Ishaan Shrivas
 4. gradio
 5. pandas
 6. matplotlib
+
+Follow the README.md in the main submission files for mode comprehensive setup instructions.

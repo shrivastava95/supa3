@@ -18,8 +18,8 @@ def process_audio(audio_file):
         inputs = torch.stack(batch).to(device)
         scores = model(inputs)[:, 1]
         scores = scores.data.cpu().numpy().tolist()
-    threshold = -3.45
-    labels = ['Spoof!' if score > threshold else 'Real!' for score in scores]
+    threshold = -3.4
+    labels = [f'Spoof! (score: {float(score):.3f})' if score > threshold else f'Real! (score: {float(score):.3f})' for score in scores]
     return labels[0]
 
 def preprocess_audio(audio_file):
